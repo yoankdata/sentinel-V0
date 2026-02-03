@@ -1,0 +1,8 @@
+prefect>=2.0.0
+requests
+google-cloud-storage
+google-cloud-bigquery
+pandas
+db-dtypes
+# dbt-bigquery  # Uncomment when dbt is needed
+python-dotenv

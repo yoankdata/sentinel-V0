@@ -1,0 +1,8 @@
+version: 2
+
+sources:
+  - name: sentinel_silver
+    database: spherical-booth-474518-n6
+    schema: sentinel_silver
+    tables:
+      - name: weather_observations
