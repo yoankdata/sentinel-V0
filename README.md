@@ -1,23 +1,83 @@
-<<<<<<< HEAD
 # sentinel-V0
-=======
-# Sentinel v0
 
-## 1. Objectif du projet
+![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)
+![Prefect](https://img.shields.io/badge/Prefect-3.0-blue)
+![dbt](https://img.shields.io/badge/dbt-1.8-orange)
+![License](https://img.shields.io/badge/license-MIT-green)
+
+## Objectif du projet
 Pipeline de données robuste pour l'ingestion et la transformation de données (ex: météo, agriculture).
 
-## 2. Architecture (Medallion)
+## Architecture (Medallion)
+
+```mermaid
+graph LR
+    API[OpenWeather API] -->|JSON| Prefect[Prefect Orchestrator]
+    Prefect -->|Raw JSON| GCS_Bronze[(GCS Bronze)]
+    GCS_Bronze -->|Load| BQ_Silver[(BigQuery Silver)]
+    BQ_Silver -->|dbt Transform| BQ_Gold[(BigQuery Gold)]
+    BQ_Gold -->|Consumption| Dashboard[Dashboards/Analysis]
+```
+
+### Détail des couches
 - **Bronze**: Données brutes (JSON) stockées sur GCS.
 - **Silver**: Données nettoyées et structurées (BigQuery/GCS).
 - **Gold**: Données agrégées prêtes pour l'analyse.
 
-## 3. Stack technique
+## Data Lineage
+
+```mermaid
+graph TD
+    subgraph Ingestion
+        WeatherAPI[Weather API] --> |Python/Prefect| Bronze[GCS Bronze JSON]
+    end
+    subgraph Warehousing
+        Bronze --> |Load| Silver[Silver Observations (BQ)]
+        Silver --> |dbt| Gold[Gold Daily Status (BQ)]
+    end
+    subgraph Quality
+        Gold --> Tests{dbt Tests}
+        Tests --> |Pass/Fail| Alerting
+    end
+```
+
+## Stack technique
 - **Orchestration**: Prefect
 - **Transformation**: dbt
 - **Stockage**: Google Cloud Storage (GCS) & BigQuery
 - **Langage**: Python 3.10+
 
-## 4. Structure du projet
+## Installation & Configuration
+
+### Pré-requis
+- Python 3.10+
+- Compte Google Cloud (Service Account avec droits GCS/BigQuery)
+- Clé API OpenWeatherMap
+
+### Setup
+1. **Cloner le repo**
+   ```bash
+   git clone https://github.com/yoankdata/sentinel-V0.git
+   cd sentinel-v0
+   ```
+
+2. **Installer les dépendances**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Configuration (Environment)**
+   Créer un fichier `.env` à la racine :
+   ```ini
+   OPENWEATHER_API_KEY=votre_cle_api
+   GCS_BRONZE_BUCKET=votre_bucket_gcs
+   PREFECT_API_URL=http://127.0.0.1:4200/api
+   ```
+
+4. **dbt Setup**
+   Configurer `profiles.yml` pour BigQuery.
+
+## Structure du projet
 ```
 sentinel-v0/
 ├── flows/          # Scripts Prefect
@@ -26,7 +86,7 @@ sentinel-v0/
 └── requirements.txt
 ```
 
-## 5. Scénario réel observé (Projet Sentinel)
+## Scénario réel observé (Projet Sentinel)
 **Cas testé : API key invalide sur ingestion météo**
 
 Dans le cadre du développement de Sentinel, nous avons simulé une panne d'authentification API pour valider la robustesse du pipeline :
@@ -44,7 +104,26 @@ Dans le cadre du développement de Sentinel, nous avons simulé une panne d'auth
    - 🛡️ **Bronze (Sécurité)** : Aucun fichier corrompu ou vide n'a été créé (`sentinel-bronze` reste propre).
    - 💎 **Gold (Stabilité)** : Les tableaux de bord et analyses continuent de fonctionner sur les données historiques (J-1), sans risque de régression ou de "trous" dans les données du jour.
 
-## 6. Commandes de run
+## Proof of Reliability
+
+This pipeline is production-oriented and designed to fail safely.
+
+- Daily scheduled ingestion via Prefect
+- Automatic retries with exponential backoff
+- Safe failure: downstream layers are never corrupted
+
+**Guarantee**  
+Daily ingestion with retries, backoff, and safe failure — no silent corruption.
+
+### Evidence
+- Prefect UI showing active daily schedule
+- Successful completed flow run
+
+![Prefect Deployment UI](assets/img/prefect_deployment_ui.png)
+
+
+
+## Commandes de run
 
 ### Bronze
 ```bash
@@ -63,7 +142,7 @@ dbt run --select weather_daily_status
 dbt test --select weather_daily_status
 ```
 
-## 7. Scénario KO (Preuve Sentinel)
+## Scénario KO (Preuve Sentinel)
 
 **But** : démontrer que Sentinel bloque la donnée aberrante.
 
@@ -96,9 +175,8 @@ WHERE weather_desc = 'bad_data_demo';
 ![Visualisation 6](assets/img/sentinel_proof_6.png)
 
 
-## 8. Interprétation “Sentinel”
+## Interprétation “Sentinel”
 
 **KO** = tests dbt échouent → données suspectes détectées
 
 **Protection** = pas de “corruption silencieuse” (tu vois l’échec)
->>>>>>> 50c1089 (V0 complete: Prefect deployment scheduled + Bronze/Silver/Gold pipeline stable)
